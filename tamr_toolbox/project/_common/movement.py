@@ -8,10 +8,12 @@ from tamr_unify_client import Client
 
 from tamr_toolbox import utils
 from tamr_toolbox.utils.operation import Operation
+from tamr_toolbox.utils.version import requires_tamr_version
 
 LOGGER = logging.getLogger(__name__)
 
 
+@requires_tamr_version(min_version="2021.005.0")
 def export_artifacts(
     *,
     project: Project,
@@ -21,24 +23,19 @@ def export_artifacts(
 ) -> Operation:
     """Export project artifacts for project movement
 
-    Version:
-        Requires Tamr 2021.005.0 or later
+    Requires Tamr 2021.005.0 or later
 
     Args:
         project: a tamr project object
         artifact_directory_path: export directory for project artifacts
         exclude_artifacts: list of artifacts to exclude
         asynchronous: flag to run function asynchronously
-
     Returns:
         operation for project export api call
     """
     # initializing empty lists if any
     if exclude_artifacts is None:
         exclude_artifacts = []
-
-    # check version compatibility for project movement
-    utils.version.enforce_after_or_equal(client=project.client, compare_version="2021.005.0")
 
     # make project export api request
     body = {"artifactDirectory": artifact_directory_path, "excludeArtifacts": exclude_artifacts}
@@ -67,6 +64,7 @@ def export_artifacts(
     return operation
 
 
+@requires_tamr_version(min_version="2021.005.0")
 def import_artifacts(
     *,
     project_artifact_path: str,
@@ -83,8 +81,7 @@ def import_artifacts(
 ) -> Operation:
     """Import project artifacts into a tamr instance
 
-    Version:
-        Requires Tamr 2021.005.0 or later
+    Requires Tamr 2021.005.0 or later
 
     Args:
         tamr_client: a tamr client
@@ -98,7 +95,6 @@ def import_artifacts(
         fail_if_not_present: flag to fail project if not already present in instance
         asynchronous: flag to run function asynchronously
         overwrite_existing: flag to overwrite existing project artifacts
-
     Returns:
         operation for project import api call
     """
@@ -113,9 +109,6 @@ def import_artifacts(
     # handle spaces in project artifact path
     if " " in project_artifact_path:
         project_artifact_path = request.pathname2url(project_artifact_path)
-
-    # check version compatibility for project movement
-    utils.version.enforce_after_or_equal(client=tamr_client, compare_version="2021.005.0")
 
     # make project import api request
     body = {

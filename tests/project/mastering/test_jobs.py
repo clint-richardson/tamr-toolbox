@@ -65,6 +65,38 @@ def test_run_with_feedback_and_estimate():
 
 
 @mock_api()
+def test_run_with_update_realtime_match():
+    client = utils.client.create(**CONFIG["toolbox_test_instance"])
+    project = client.projects.by_resource_id(PROJECT_ID)
+    project = project.as_mastering()
+    all_ops = mastering.jobs.run(project, run_update_realtime_match=True)
+
+    for op in all_ops:
+        assert op.succeeded()
+
+    assert len(all_ops) == 7
+
+    assert (
+        f"Materialize views [{project.unified_dataset().name}] to Elastic"
+        == all_ops[0].description
+    )
+    assert "Update Pairs" == all_ops[1].description
+    assert "Predict Pairs" == all_ops[2].description
+    assert "Generate High-impact Pairs" == all_ops[3].description
+    assert "Clustering" == all_ops[4].description
+    assert "Publish clusters" == all_ops[5].description
+    assert "Update LLM datasets" == all_ops[6].description
+
+    # Test updating match data when it's already up-to-date
+    ops = mastering.jobs._run_custom(project, run_update_realtime_match=True)
+    assert len(ops) == 1
+    op = ops[0]
+
+    assert op.succeeded()
+    assert "already up-to-date." in op.description
+
+
+@mock_api()
 @pytest.mark.parametrize(
     "project_id",
     [
@@ -79,3 +111,21 @@ def test_run_with_wrong_project_type(project_id: str):
 
     with pytest.raises(TypeError):
         mastering.jobs.run(project)
+
+
+@mock_api()
+def test_safe_generate_pairs():
+    client = utils.client.create(**CONFIG["toolbox_test_instance"])
+    estimate_project_id = CONFIG["projects"]["first_pairs_estimate"]
+    project = client.projects.by_resource_id(estimate_project_id)
+    project = project.as_mastering()
+
+    op = utils.operation.safe_estimate_counts(project)
+    assert op.succeeded()
+
+    count = project.client.get(
+        f"/api/versioned/v1/projects/{estimate_project_id}/estimatedPairCounts"
+    ).json()
+    assert int(count["totalEstimate"]["candidatePairCount"]) >= int(
+        count["totalEstimate"]["generatedPairCount"]
+    )

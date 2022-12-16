@@ -1,17 +1,14 @@
 """Tasks related to running jobs for groups of Tamr projects"""
+import time
 from typing import List, Optional
 import logging
 
 from tamr_unify_client.operation import Operation
-from tamr_unify_client.project.resource import Project
+from tamr_unify_client.project.resource import Project, Dataset
 from tamr_toolbox.models.project_type import ProjectType
 
-from tamr_toolbox.project import (
-    mastering,
-    categorization,
-    golden_records,
-    schema_mapping,
-)
+from tamr_toolbox.project import mastering, categorization, golden_records, schema_mapping
+from requests import HTTPError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +18,8 @@ def run(
     *,
     run_apply_feedback: bool = False,
     run_estimate_pair_counts: bool = False,
+    run_profile_unified_datasets: bool = False,
+    sleep_interval: int = 0,
 ) -> List[Operation]:
     """Run multiple projects in order
 
@@ -29,6 +28,9 @@ def run(
         run_apply_feedback: Whether train should be called on the pair matching model
             or categorization model (based on project type)
         run_estimate_pair_counts: Whether an estimate pairs job should be run
+        run_profile_unified_datasets: Whether unified datasets should be re-profiled
+        sleep_interval: Number of seconds to sleep between job submissions.
+            Useful in some pipeline situations
 
     Returns:
         The operations that were run
@@ -65,6 +67,31 @@ def run(
             LOGGER.error(error_msg)
             raise NotImplementedError(error_msg)
 
+        # Excluding GOLDEN_RECORDS as profile information is refreshed as part of job:
+        # breakpoint()
+        if (
+            (target_type == ProjectType.SCHEMA_MAPPING_RECOMMENDATIONS)
+            | (target_type == ProjectType.CATEGORIZATION)
+            | (target_type == ProjectType.DEDUP)
+        ):
+            if run_profile_unified_datasets:
+                LOGGER.info(f"Checking for profile for {project.unified_dataset().name}")
+                try:
+                    profile = project.unified_dataset().profile()
+                except HTTPError:
+                    LOGGER.info(
+                        f"Profile not found for {project.unified_dataset().name}. Creating"
+                        f" a profile."
+                    )
+                    project.unified_dataset().create_profile()
+                    profile = project.unified_dataset().profile()
+                LOGGER.info(f"Refreshing profile for {project.unified_dataset().name}")
+                operations.append(profile.refresh())
+
+        # if we need to sleep before the next iteration then do so
+        # default is zero so don't need an if statement
+        time.sleep(sleep_interval)
+
     return operations
 
 
@@ -74,19 +101,19 @@ def _find_upstream_projects(
     project_list: Optional[List[str]] = None,
     upstream_projects: Optional[List[str]] = None,
 ) -> List[Project]:
-    """ Check for upstream projects that have source datasets that require
-        updating
-        Args:
-            project: a tamr project
-            track of projects that need to be checked for upstream dependencies
-            all_projects: list of all projects that exist within Tamr
-            project_list: keeps track of projects that have yet to be checked
-            for upstream dependencies.
-            upstream_projects: list to keep track of projects within a chain of projects
-        Returns:
-            upstream_projects: final list of tamr projects in a chained
-            workflow
-        """
+    """Check for upstream projects that have source datasets that require
+    updating
+    Args:
+        project: a tamr project
+        track of projects that need to be checked for upstream dependencies
+        all_projects: list of all projects that exist within Tamr
+        project_list: keeps track of projects that have yet to be checked
+        for upstream dependencies.
+        upstream_projects: list to keep track of projects within a chain of projects
+    Returns:
+        upstream_projects: final list of tamr projects in a chained
+        workflow
+    """
     # Obtain the name of project to be updated and initiate the list of
     # projects (project_list) that are maintained within the check_for_upstream_project
     # function to check for upstream dependencies
@@ -159,7 +186,7 @@ def _find_upstream_projects(
 
 
 def get_upstream_projects(project: Project) -> List[Project]:
-    """ Check for upstream projects associated with a specified project
+    """Check for upstream projects associated with a specified project
 
     Args:
         project: the tamr project for which associated upstream projects are retrieved
@@ -169,3 +196,26 @@ def get_upstream_projects(project: Project) -> List[Project]:
     upstream_projects = _find_upstream_projects(project)
 
     return upstream_projects
+
+
+def get_project_output_datasets(project: Project) -> List[Dataset]:
+    """Retrieves datasets produced by a given Tamr project
+
+    Args:
+        project: the Tamr project for which associated output datasets are retrieved
+
+    Returns:
+        The list of Tamr datasets output from the project"""
+    input_datasets_dependencies = [
+        dep
+        for ds in {input_ds for input_ds in project.input_datasets()}
+        for dep in ds.usage().dependencies
+    ]
+    output_dataset_names = {
+        dep.dataset_name
+        for dep in input_datasets_dependencies
+        if dep.output_from_project_steps
+        and project.name == dep.output_from_project_steps[0].project_name
+    }
+
+    return [ds for ds in project.client.datasets if ds.name in output_dataset_names]

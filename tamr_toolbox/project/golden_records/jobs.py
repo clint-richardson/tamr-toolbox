@@ -7,17 +7,19 @@ from tamr_unify_client.project.resource import Project
 
 from tamr_toolbox.models.project_type import ProjectType
 from tamr_toolbox.utils import operation
-from tamr_toolbox.utils import version
+from tamr_toolbox.utils.version import requires_tamr_version
 
 LOGGER = logging.getLogger(__name__)
 
 
+@requires_tamr_version(min_version="2020.004.0")
 def _run_custom(
     project: Project,
     *,
     run_profile_golden_records: bool = False,
     run_update_golden_records: bool = False,
     run_publish_golden_records: bool = False,
+    process_asynchronously: bool = False,
 ) -> List[Operation]:
     """Executes specified steps of a golden records project.
 
@@ -29,6 +31,8 @@ def _run_custom(
             dataset
         run_publish_golden_records: Whether refresh should be called on the published golden
             records dataset
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -36,8 +40,6 @@ def _run_custom(
     Raises:
         TypeError: if the `project` is not a Golden Record project
     """
-    version.enforce_after_or_equal(project.client, compare_version="2020.004.0")
-
     if ProjectType[project.type] != ProjectType.GOLDEN_RECORDS:
         error_msg = f"Cannot use as a golden records project. Project type: {project.type}"
         LOGGER.error(error_msg)
@@ -52,10 +54,13 @@ def _run_custom(
         resp = project.client.post(
             f"/api/versioned/v1/projects/{project.resource_id}/goldenRecordsProfile:refresh"
         ).successful()
+
         op = Operation.from_response(client=project.client, response=resp)
-        op = op.wait()
-        operation.enforce_success(op)
+        if not process_asynchronously:
+            op = op.wait()
+            operation.enforce_success(op)
         completed_operations.append(op)
+
     if run_update_golden_records:
         LOGGER.info(
             f"Updating the draft golden records for project {project.name} "
@@ -64,10 +69,13 @@ def _run_custom(
         resp = project.client.post(
             f"/api/versioned/v1/projects/{project.resource_id}/goldenRecords:refresh"
         ).successful()
+
         op = Operation.from_response(client=project.client, response=resp)
-        op = op.wait()
-        operation.enforce_success(op)
+        if not process_asynchronously:
+            op = op.wait()
+            operation.enforce_success(op)
         completed_operations.append(op)
+
     if run_publish_golden_records:
         LOGGER.info(
             f"Publishing golden records for project {project.name} (id={project.resource_id})."
@@ -76,18 +84,23 @@ def _run_custom(
             f"/api/versioned/v1/projects/{project.resource_id}/publishedGoldenRecords:refresh"
             f"?validate=true&version=CURRENT"
         ).successful()
+
         op = Operation.from_response(client=project.client, response=resp)
-        op = op.wait()
-        operation.enforce_success(op)
+        if not process_asynchronously:
+            op = op.wait()
+            operation.enforce_success(op)
         completed_operations.append(op)
+
     return completed_operations
 
 
-def run(project: Project) -> List[Operation]:
+def run(project: Project, *, process_asynchronously: bool = False) -> List[Operation]:
     """Run the project
 
     Args:
         project: Target golden records project
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -97,14 +110,19 @@ def run(project: Project) -> List[Operation]:
         run_profile_golden_records=True,
         run_update_golden_records=True,
         run_publish_golden_records=True,
+        process_asynchronously=process_asynchronously,
     )
 
 
-def update_input_dataset_profiling_information(project: Project) -> List[Operation]:
+def update_profiling_info(
+    project: Project, *, process_asynchronously: bool = False
+) -> List[Operation]:
     """Updating all profiling information for golden records project
 
     Args:
         project: Target golden records project
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -114,14 +132,19 @@ def update_input_dataset_profiling_information(project: Project) -> List[Operati
         run_profile_golden_records=True,
         run_update_golden_records=False,
         run_publish_golden_records=False,
+        process_asynchronously=process_asynchronously,
     )
 
 
-def update_golden_records(project: Project) -> List[Operation]:
+def update_golden_records(
+    project: Project, *, process_asynchronously: bool = False
+) -> List[Operation]:
     """Update the draft golden records of a project
 
     Args:
         project: Target golden records project
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -131,14 +154,19 @@ def update_golden_records(project: Project) -> List[Operation]:
         run_profile_golden_records=False,
         run_update_golden_records=True,
         run_publish_golden_records=False,
+        process_asynchronously=process_asynchronously,
     )
 
 
-def publish_golden_records(project: Project) -> List[Operation]:
+def publish_golden_records(
+    project: Project, *, process_asynchronously: bool = False
+) -> List[Operation]:
     """Publish the  golden records of a project
 
     Args:
         project: Target golden records project
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -148,14 +176,19 @@ def publish_golden_records(project: Project) -> List[Operation]:
         run_profile_golden_records=False,
         run_update_golden_records=False,
         run_publish_golden_records=True,
+        process_asynchronously=process_asynchronously,
     )
 
 
-def update_and_publish(project: Project) -> List[Operation]:
+def update_and_publish(
+    project: Project, *, process_asynchronously: bool = False
+) -> List[Operation]:
     """Update the draft golden records and publish the golden records
 
     Args:
         project: Target golden records project
+        process_asynchronously: Whether or not to wait for the job to finish before returning
+            - must be set to True for concurrent workflow
 
     Returns:
         The operations that were run
@@ -165,4 +198,5 @@ def update_and_publish(project: Project) -> List[Operation]:
         run_profile_golden_records=False,
         run_update_golden_records=True,
         run_publish_golden_records=True,
+        process_asynchronously=process_asynchronously,
     )

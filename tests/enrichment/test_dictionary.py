@@ -101,37 +101,39 @@ def test_dictionary_filename():
 
 
 def test_dictionary_creating_and_loading():
-    dictionary_folder = Path(tempfile.gettempdir())
-    target_language = "fr"
-    source_language = "auto"
+    with tempfile.TemporaryDirectory() as tempdir:
+        dictionary_folder = Path(tempdir)
+        target_language = "fr"
+        source_language = "auto"
 
-    empty_dictionary_filepath = enrichment.dictionary.create(
-        dictionary_folder, target_language=target_language, source_language=source_language
-    )
-    assert empty_dictionary_filepath == str(dictionary_folder / "dictionary_auto_to_fr.json")
+        empty_dictionary_filepath = enrichment.dictionary.create(
+            dictionary_folder, target_language=target_language, source_language=source_language
+        )
+        assert empty_dictionary_filepath == str(dictionary_folder / "dictionary_auto_to_fr.json")
 
-    empty_dictionary = enrichment.dictionary.load(
-        dictionary_folder, target_language=target_language, source_language=source_language,
-    )
-    assert empty_dictionary == {}
+        empty_dictionary = enrichment.dictionary.load(
+            dictionary_folder, target_language=target_language, source_language=source_language
+        )
+        assert empty_dictionary == {}
 
 
 def test_dictionary_saving_and_loading():
-    dictionary_folder = Path(tempfile.gettempdir())
-    target_language = "fr"
-    source_language = "auto"
+    with tempfile.TemporaryDirectory() as tempdir:
+        dictionary_folder = Path(tempdir)
+        target_language = "fr"
+        source_language = "auto"
 
-    enrichment.dictionary.save(
-        translation_dictionary=TEST_TRANSLATION_DICTIONARY,
-        dictionary_folder=dictionary_folder,
-        target_language=target_language,
-        source_language=source_language,
-    )
+        enrichment.dictionary.save(
+            translation_dictionary=TEST_TRANSLATION_DICTIONARY,
+            dictionary_folder=dictionary_folder,
+            target_language=target_language,
+            source_language=source_language,
+        )
 
-    saved_dictionary = enrichment.dictionary.load(
-        dictionary_folder, target_language=target_language, source_language=source_language,
-    )
-    assert TEST_TRANSLATION_DICTIONARY == saved_dictionary
+        saved_dictionary = enrichment.dictionary.load(
+            dictionary_folder, target_language=target_language, source_language=source_language
+        )
+        assert TEST_TRANSLATION_DICTIONARY == saved_dictionary
 
 
 def test_dictionary_updating():
@@ -144,16 +146,12 @@ def test_dictionary_updating():
                 )
             }
         )
-    enrichment.dictionary.update(
-        main_dictionary, TEST_TRANSLATION_DICTIONARY,
-    )
+    enrichment.dictionary.update(main_dictionary, TEST_TRANSLATION_DICTIONARY)
     assert main_dictionary == TEST_TRANSLATION_DICTIONARY
 
     # Test updating dictionary with missing keys
     main_dictionary = {}
-    enrichment.dictionary.update(
-        main_dictionary, TEST_TRANSLATION_DICTIONARY,
-    )
+    enrichment.dictionary.update(main_dictionary, TEST_TRANSLATION_DICTIONARY)
     assert main_dictionary == TEST_TRANSLATION_DICTIONARY
 
 
@@ -221,7 +219,7 @@ def test_dictionary_to_dataset_upsert():
     client = utils.client.create(**CONFIG["toolbox_test_instance"])
     dataset = client.datasets.by_resource_id(DICTIONARY_DATASET_ID)
     dataset_name = enrichment.dictionary.to_dataset(
-        dictionary=TEST_TRANSLATION_DICTIONARY, dataset=dataset,
+        dictionary=TEST_TRANSLATION_DICTIONARY, dataset=dataset
     )
     assert dataset_name == "dictionary_auto_to_fr.json"
     assert enrichment.dictionary.from_dataset(dataset) == TEST_TRANSLATION_DICTIONARY
@@ -234,9 +232,7 @@ def test_dictionary_to_dataset_upsert_wrong_dataset():
         CONFIG["datasets"]["minimal_golden_records_golden_records"]
     )
     with pytest.raises(ValueError):
-        enrichment.dictionary.to_dataset(
-            dictionary=TEST_TRANSLATION_DICTIONARY, dataset=dataset,
-        )
+        enrichment.dictionary.to_dataset(dictionary=TEST_TRANSLATION_DICTIONARY, dataset=dataset)
 
 
 @mock_api()

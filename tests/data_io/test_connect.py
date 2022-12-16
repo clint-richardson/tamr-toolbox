@@ -5,6 +5,9 @@ from tamr_toolbox.utils.config import from_yaml
 from tests._common import get_toolbox_root_dir
 
 CONFIG = from_yaml(get_toolbox_root_dir() / "tests/mocking/resources/connect.config.yaml")
+CONFIG_WITH_CERT = from_yaml(
+    get_toolbox_root_dir() / "tests/mocking/resources/connect.certified_config.yaml"
+)
 CONFIG_HTTPS = from_yaml(
     get_toolbox_root_dir() / "tests/mocking/resources/connect_https.config.yaml"
 )
@@ -39,8 +42,24 @@ def test_create_with_multiple_parameters(protocol: str, port: str, base_path: st
     assert expected == client._get_url(connect_info, "api/jdbc/ingest")
 
 
+def test_create_with_certfile():
+    connect_info = client.create(
+        host="localhost",
+        port="9030",
+        protocol="http",
+        tamr_username="",
+        tamr_password="",
+        base_path="",
+        jdbc_dict=CONFIG["df_connect"]["jdbc"]["ingest"],
+        cert="pretend_cert",
+    )
+    assert "http://localhost:9030/api/jdbc/ingest" == client._get_url(
+        connect_info, "api/jdbc/ingest"
+    )
+
+
 def test_create_bad_configuration():
-    """Ensure a bad configuration raises a connection error """
+    """Ensure a bad configuration raises a connection error"""
     with pytest.raises(RuntimeError):
         my_connect = client.create(
             host="localhost",
@@ -95,6 +114,17 @@ def test_deployment_parsing():
     assert my_connect.tamr_password == "my_password"
 
 
+def test_certfile_parsing():
+    my_connect = client.from_config(CONFIG_WITH_CERT)
+    assert my_connect.host == "localhost"
+    assert my_connect.port == "9030"
+    assert my_connect.protocol == "http"
+    assert my_connect.base_path == ""
+    assert my_connect.tamr_username == "my_user"
+    assert my_connect.tamr_password == "my_password"
+    assert my_connect.cert == "path_to_my_cert"
+
+
 def test_jdbc_parsing():
     my_connect = client.from_config(CONFIG)
     assert my_connect.jdbc_info.jdbc_url == "tamr::jdbc_ingest"
@@ -121,14 +151,14 @@ def test_https_deployment_processing():
 
 
 def test_oracle_parsing():
-    my_connect = client.from_config(CONFIG_MULTI_EXPORT, jdbc_key="oracle",)
+    my_connect = client.from_config(CONFIG_MULTI_EXPORT, jdbc_key="oracle")
     assert my_connect.jdbc_info.jdbc_url == "jdbc::oracle_db"
     assert my_connect.jdbc_info.db_user == "oracle_user"
     assert my_connect.jdbc_info.db_password == "oracle_pw"
 
 
 def test_postgres_parsing():
-    my_connect = client.from_config(CONFIG_MULTI_EXPORT, jdbc_key="postgres",)
+    my_connect = client.from_config(CONFIG_MULTI_EXPORT, jdbc_key="postgres")
     assert my_connect.jdbc_info.jdbc_url == "jdbc::postgres_db"
     assert my_connect.jdbc_info.db_user == "postgres_user"
     assert my_connect.jdbc_info.db_password == "postgres_pw"
