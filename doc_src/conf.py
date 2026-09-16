@@ -44,7 +44,10 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
 ]
-autodoc_default_options = {"inherited-members": True, "members": True}
+# Document inherited members, except those coming from int and object. PlanNodeStatus is an
+# IntEnum, and Python 3.12's int.to_bytes/from_bytes docstrings contain an unbalanced
+# backtick that docutils rejects (fixed in CPython 3.13).
+autodoc_default_options = {"inherited-members": "int, object", "members": True}
 autodoc_member_order = "bysource"
 autosectionlabel_prefix_document = True
 # Markdown is parsed by myst_parser (see extensions). Navigation is written as explicit
