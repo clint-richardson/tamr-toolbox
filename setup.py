@@ -16,9 +16,9 @@ with open("README.md", encoding="utf-8") as f:
 # dependencies; the "all" extra is derived from it below.
 optional_dependencies = {
     "address-validation": ["googlemaps>=4.10.0"],
-    "pandas": ["pandas>=1.5,<3"],
+    "pandas": ["pandas>=2.2.2,<3"],
     "slack": ["slack_sdk>=3.19"],
-    "testing": ["responses>=0.23"],
+    "testing": ["responses>=0.24"],
     "translation": ["google-cloud-translate>=3.15"],
     "ssh": ["paramiko>=3.4"],
     "gcs": ["google-cloud-storage>=2.0.0"],

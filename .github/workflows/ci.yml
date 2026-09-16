@@ -99,7 +99,6 @@ jobs:
   Enforce-Test-Coverage:
     runs-on: ubuntu-latest
     env:
-      COVERAGE_SINGLE: 0
       COVERAGE_TOTAL: 27
     steps:
       - uses: actions/checkout@v4
@@ -109,26 +108,8 @@ jobs:
           python-version: '3.12'
       - name: Install requirements
         run: python install.py
-      - name: pytester-cov
-        id: pytester-cov
-        uses: programmingwithalex/pytester-cov@6ce63dd8e8f48dd07095d098db7375bb0e4ffea8  # v1.2.4
-        with:
-          pytest-root-dir: '.'
-          cov-omit-list: 'examples/*, doc_src/*, tests/*, install.py, setup.py, tasks.py'
-          cov-threshold-single: ${{ env.COVERAGE_SINGLE }}
-          cov-threshold-total: ${{ env.COVERAGE_TOTAL }}
-      - name: Coverage single fail - exit
-        if: ${{ steps.pytester-cov.outputs.cov-threshold-single-fail == 'true' }}
-        run: |
-          echo "cov single fail ${{ steps.pytester-cov.outputs.cov-threshold-single-fail }}"
-          echo "coverage table ${{ steps.pytester-cov.outputs.output-table }}"
-          exit 1
-      - name: Coverage total fail - exit
-        if: ${{ steps.pytester-cov.outputs.cov-threshold-total-fail == 'true' }}
-        run: |
-          echo "cov total fail ${{ steps.pytester-cov.outputs.cov-threshold-total-fail }}"
-          echo "coverage table ${{ steps.pytester-cov.outputs.output-table }}"
-          exit 1
+      - name: Run tests with coverage
+        run: python -m pytest --cov=tamr_toolbox --cov-report=term --cov-fail-under=${{ env.COVERAGE_TOTAL }}
   Notify:
     needs:  # List of all preceding jobs
       - Lint

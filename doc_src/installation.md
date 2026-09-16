@@ -59,7 +59,7 @@ Install instructions:
 
 Required for [Testing](modules/utils)
 
-Library: [Responses](https://github.com/getsentry/responses) (`tamr-toolbox` uses version >= 0.23)
+Library: [Responses](https://github.com/getsentry/responses) (`tamr-toolbox` uses version >= 0.24)
 
 ***Optional Feature: Pandas dataframes***
 
@@ -68,7 +68,7 @@ Install instructions:
 
 Required for [DataFrame I/O](modules/data_io/dataframe.md)
 
-Library: [Pandas](https://pandas.pydata.org/pandas-docs/stable/) (`tamr-toolbox` uses version >= 1.5, < 3)
+Library: [Pandas](https://pandas.pydata.org/pandas-docs/stable/) (`tamr-toolbox` uses version >= 2.2.2, < 3)
 
 ***Optional Feature: Slack Notifications***
 
